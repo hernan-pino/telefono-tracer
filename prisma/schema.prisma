@@ -1,0 +1,79 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Store {
+  id            String   @id @default(cuid())
+  name          String
+  address       String?
+  city          String?
+  users         User[]
+  samplesHere   Sample[]          @relation("CurrentStore")
+  transfersFrom TransferRequest[] @relation("FromStore")
+  transfersTo   TransferRequest[] @relation("ToStore")
+}
+
+model User {
+  id               String            @id @default(cuid())
+  name             String
+  email            String            @unique
+  passwordHash     String
+  role             String            // MERCHANDISER | SUPERVISOR
+  store            Store?            @relation(fields: [storeId], references: [id])
+  storeId          String?
+  requestsMade     TransferRequest[] @relation("RequestedBy")
+  requestsResolved TransferRequest[] @relation("ResolvedBy")
+  auditEvents      AuditEvent[]
+}
+
+model Sample {
+  id             String            @id @default(cuid())
+  brand          String
+  model          String
+  color          String?
+  serialNumber   String?
+  imei           String?           @unique
+  status         String            // ACTIVE | IN_TRANSIT | LOST | RETIRED
+  currentStore   Store             @relation("CurrentStore", fields: [currentStoreId], references: [id])
+  currentStoreId String
+  transfers      TransferRequest[]
+  auditEvents    AuditEvent[]
+  createdAt      DateTime          @default(now())
+}
+
+model TransferRequest {
+  id              String    @id @default(cuid())
+  sample          Sample    @relation(fields: [sampleId], references: [id])
+  sampleId        String
+  fromStore       Store     @relation("FromStore", fields: [fromStoreId], references: [id])
+  fromStoreId     String
+  toStore         Store     @relation("ToStore", fields: [toStoreId], references: [id])
+  toStoreId       String
+  requestedBy     User      @relation("RequestedBy", fields: [requestedById], references: [id])
+  requestedById   String
+  status          String    // PENDING | APPROVED | REJECTED
+  resolvedBy      User?     @relation("ResolvedBy", fields: [resolvedById], references: [id])
+  resolvedById    String?
+  rejectionReason String?
+  requestedAt     DateTime  @default(now())
+  resolvedAt      DateTime?
+  notes           String?
+}
+
+model AuditEvent {
+  id          String   @id @default(cuid())
+  sample      Sample   @relation(fields: [sampleId], references: [id])
+  sampleId    String
+  user        User     @relation(fields: [userId], references: [id])
+  userId      String
+  eventType   String
+  fromStoreId String?
+  toStoreId   String?
+  notes       String?
+  createdAt   DateTime @default(now())
+}
